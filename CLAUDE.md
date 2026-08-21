@@ -1,157 +1,30 @@
 # CLAUDE.md
 
-Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+이 저장소는 애플리케이션이 아니라 마크다운 문서 아카이브다. 빌드 도구, 패키지 매니저, 실행할 명령어가 없다. `pnpm`, `npm`, 빌드, 린트, 테스트를 시도하지 말 것.
 
-**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+렌더링은 GitHub이 담당한다. mermaid, KaTeX(`$`), 코드 구문 강조, 상대 경로 이미지, 제목 앵커, `.excalidraw` 미리보기가 모두 네이티브로 동작한다. 렌더링을 위한 코드를 추가할 이유가 없다.
 
-## 1. Think Before Coding
+## 디렉터리 규약
 
-**Don't assume. Don't hide confusion. Surface tradeoffs.**
-
-Before implementing:
-
-- State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them - don't pick silently.
-- If a simpler approach exists, say so. Push back when warranted.
-- If something is unclear, stop. Name what's confusing. Ask.
-
-## 2. Simplicity First
-
-**Minimum code that solves the problem. Nothing speculative.**
-
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
-
-Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
-
-## 3. Surgical Changes
-
-**Touch only what you must. Clean up only your own mess.**
-
-When editing existing code:
-
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it - don't delete it.
-
-When your changes create orphans:
-
-- Remove imports/variables/functions that YOUR changes made unused.
-- Don't remove pre-existing dead code unless asked.
-
-The test: Every changed line should trace directly to the user's request.
-
-## 4. Goal-Driven Execution
-
-**Define success criteria. Loop until verified.**
-
-Transform tasks into verifiable goals:
-
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
-
-For multi-step tasks, state a brief plan:
+태그가 곧 디렉터리다. 문서 하나는 폴더 하나이며, 본문 파일명은 반드시 `README.md`다. GitHub은 폴더를 열 때 `README.md`만 자동 렌더링하고 `index.md`는 렌더링하지 않는다.
 
 ```text
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
+javascript/README.md              태그에 문서가 하나뿐이거나 태그 자체를 다루는 문서
+javascript/prototype/README.md    태그 아래 개별 주제 문서
+javascript/prototype/images/      해당 문서의 이미지, 상대 경로로 참조
 ```
 
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+- 폴더명은 snake_case를 사용한다. 상위 태그명을 폴더명에 반복하지 않는다 (`javascript/prototype`이며 `javascript/js_prototype`이 아니다).
+- 이미지는 문서와 같은 폴더의 `images/`에 두고 `images/파일명.webp`로 참조한다. 저장소 절대 경로를 쓰면 GitHub과 로컬 뷰어 양쪽에서 깨진다.
+- 프론트매터를 쓰지 않는다. `title`, `tag`, `isPublished`, `folderName`은 각각 h1 제목, 디렉터리 경로, 본문 내 초안 표기로 대체됐다.
+- 메타데이터 인덱스(`list.json`) 같은 생성 산출물이 없다. 문서를 추가한 뒤 실행할 후속 작업은 루트 `README.md`의 문서 수를 갱신하는 것뿐이다.
 
----
+## 문서 작성
 
-## 명령어
+문서를 작성하거나 수정할 때는 `markdown-writer-local` 스킬을 사용한다. 문서 구조, 말투, 포맷, 금지 사항 등 글쓰기 규칙 전체가 해당 스킬에 정의되어 있다. 위의 디렉터리 규약이 스킬의 파일 위치·프론트매터 항목보다 우선한다.
 
-```bash
-pnpm dev          # 개발 서버 실행 (포트 3000)
-pnpm build        # 프로덕션 빌드 (prebuild에서 type, lint 자동 실행)
-pnpm type         # TypeScript 타입 체크
-pnpm lint         # ESLint 실행
-pnpm prettier     # 모든 .tsx 파일 포맷
-pnpm audit        # 보안 취약점 검사 (high 이상)
-pnpm deps:check   # 의존성 업데이트 확인
-pnpm deps:update  # 의존성 업데이트 후 빌드
-```
+초안 상태의 문서는 h1 바로 아래에 작성 중이라는 사실을 한 줄로 적는다.
 
-## 아키텍처
+## 히스토리
 
-Next.js 16 (App Router) 기반 개인 블로그로, 주요 라우트는 두 가지다.
-
-- `/markdown` — 태그 필터링 및 페이지네이션이 있는 아티클 목록
-- `/markdown/[folderName]/detail` — 정적 마크다운 아티클 상세 페이지 (`generateStaticParams`로 SSG)
-
-### FSD 레이어 구조
-
-FSD(Feature-Sliced Design) 아키텍처를 적용한다. 레이어 계층은 다음과 같으며, 상위 레이어만 하위 레이어를 import할 수 있다.
-
-```mermaid
-flowchart LR
-  app/ --> widgets/ --> features/ --> entities/ --> shared/
-```
-
-각 슬라이스 내부는 표준 세그먼트로 구성된다: `ui/`, `api/`, `model/`, `lib/`, `config/`
-
-외부에서는 반드시 슬라이스 루트 `index.ts`를 통해 import한다 (`@/entities/markdown`, `@/features/search-markdown` 등).
-
-예외로 `entities/markdown/api`는 `fs`를 사용하는 서버 전용 모듈이라 슬라이스 공개 API에서 제외했다. 공개 API에 두면 클라이언트 컴포넌트가 슬라이스를 import할 때 `fs`가 브라우저 번들로 끌려와 빌드가 깨진다. 서버 컴포넌트에서는 `@/entities/markdown/api`로 직접 import하며, 해당 예외는 `steiger.config.ts`에서 `app/markdown/**` 범위로만 허용한다.
-
-shadcn/ui 컴포넌트는 FSD 레이어 밖의 루트 `shadcn/` 디렉터리에 둔다. shadcn CLI가 관리하는 벤더 코드이므로 FSD 규칙을 적용하지 않고, 사용처에서 파일 경로로 직접 import한다 (`@/shadcn/ui/badge`, `@/shadcn/lib/utils` 등).
-
-### 디렉터리 구조
-
-- `app/` — Next.js App Router 페이지 및 API 라우트 (FSD app 레이어)
-  - `_providers/` — ReactQueryProvider, GlobalClientConfig
-- `widgets/` — 복합 UI 블록 (여러 레이어를 조합)
-  - `site-header/` — Header (내부 navList + DarkLightButton 조합)
-  - `site-footer/` — Footer
-- `features/` — 사용자 인터랙션 및 비즈니스 유스케이스
-  - `search-markdown/` — MarkdownSearchInput (Fuse.js 검색)
-- `entities/` — 도메인 엔티티 (각 슬라이스: `ui/`, `api/`, `model/`)
-  - `markdown/` — MarkdownMetaCard, TagNavigation, 마크다운 파일 I/O 함수, 타입
-  - `profile/` — Profile, CareerContentItem, ProjectContentItem, 정적 데이터, 타입
-- `shared/` — 재사용 UI 키트 및 공용 유틸
-  - `ui/` — Pagination, Menu, Tree 등 자체 범용 컴포넌트와 icons.ts (iconMap)
-  - `lib/` — useDebounce, useThrottle, useRequestAnimationFrame
-  - `model/` — constants.ts (PAGE_SIZE)
-- `shadcn/` — shadcn CLI가 관리하는 벤더 코드 (FSD 레이어 밖)
-  - `ui/` — Accordion, Badge, Button, Dialog, Input, RadioGroup, Textarea
-  - `lib/utils.ts` — cn 유틸
-- `public/markdown/` — 아티클 콘텐츠 및 이미지
-- `styles/` — 전역 CSS 및 구문 강조 CSS
-
-### 마크다운 콘텐츠 파이프라인
-
-아티클은 `public/markdown/{folderName}/index.md`에 YAML 프론트매터(`folderName`, `title`, `tag`, `isPublished`)와 함께 저장된다. 임시/초안 아티클은 `public/markdown/@temp/`에 둔다.
-
-메타데이터 인덱스는 `entities/markdown/model/list.json`에 저장되며 저장소에 커밋된다. `entities/markdown/api/index.ts` 하단에 주석 처리된 `writeMarkdownMetaList()` 호출을 해제하고 실행하면 재생성된다. 이후 `list.json`을 다시 커밋해야 한다. 상세 페이지는 `dynamicParams = false`로 설정되어 있고 `generateStaticParams`에서 `list.json`을 읽으므로, 빌드 전에 반드시 최신 상태여야 한다.
-
-### 경로 별칭
-
-`@/*`는 저장소 루트로 매핑된다(`tsconfig.json` 참고). 모든 import는 상대 경로 대신 `@/`를 사용한다.
-
-### API 라우트
-
-- `POST /api/mail` — 스텁 (빈 핸들러).
-
-### 테마
-
-다크/라이트 모드는 `theme` 쿠키에 저장되며, `app/layout.tsx`에서 서버 사이드로 읽어 `<html>` 클래스에 적용한다. `DarkLightButton` 컴포넌트가 클라이언트에서 쿠키를 쓴다.
-
-### 스타일링
-
-Tailwind CSS v4와 마크다운 prose를 위한 `@tailwindcss/typography`를 사용한다. 조건부 클래스 병합에는 `tailwind-merge`를 사용하고, 포맷 시 `prettier-plugin-tailwindcss`가 클래스 순서를 정렬한다.
-
-## 아티클 작성
-
-아티클을 작성하거나 수정할 때는 반드시 `markdown-writer` 스킬을 사용한다. 전체 작성 규칙(프론트매터, 문서 구조, 말투, 금지 사항 등)은 `.claude/skills/markdown-writer/SKILL.md`에 정의되어 있다.
-
-스킬 외에 추가로 지켜야 할 사항은 다음과 같다.
-
-- 아티클 추가/수정 후 `writeMarkdownMetaList()`를 실행하여 `entities/markdown/model/list.json`을 재생성하고 커밋한다.
+2023년 9월부터 2026년 7월까지 이 저장소는 Next.js 블로그였다. 앱 전체는 `blog-final` 태그에서 복원할 수 있고, 이관 배경은 루트 `README.md`에 적혀 있다. 앱 시절의 구조(FSD, shadcn, steiger)를 되살리거나 참고하지 말 것.
